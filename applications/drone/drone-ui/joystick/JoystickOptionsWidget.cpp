@@ -1,11 +1,12 @@
 #include "JoystickOptionsWidget.h"
 #include "ui_JoystickOptionsWidget.h"
 
-#include "joystickInterface.h"
+#include "linuxJoystickInterface.h"
 #include "core/utils/global.h"
 
 using namespace std;
 
+using namespace corecvs;
 
 JoystickOptionsWidget::JoystickOptionsWidget(QWidget *parent) :
     QWidget(parent),
@@ -13,6 +14,10 @@ JoystickOptionsWidget::JoystickOptionsWidget(QWidget *parent) :
 {
     ui->setupUi(this);
     rereadDevices();
+
+    GraphPlotParameters graphParams = ui->graphWidget->getParameters();
+    graphParams.setYScale(35000);
+    ui->graphWidget->setParameters(graphParams);
 }
 
 JoystickOptionsWidget::~JoystickOptionsWidget()
@@ -23,17 +28,24 @@ JoystickOptionsWidget::~JoystickOptionsWidget()
 void JoystickOptionsWidget::rereadDevices()
 {
     ui->comboBox->clear();
-    vector<string> devices = JoystickInterface::getDevices();
+    vector<string> devices = LinuxJoystickInterface::getDevices();
 
     for (size_t i = 0; i < devices.size(); i ++)
     {
         ui->comboBox->addItem(QString::fromStdString(devices[i]));
     }
+
+    devices = PlaybackJoystickInterface::getDevices();
+    for (size_t i = 0; i < devices.size(); i ++)
+    {
+        ui->comboBox->addItem(QString::fromStdString(devices[i]));
+    }
+
 }
 
 void JoystickOptionsWidget::getProps()
 {
-    JoystickConfiguration conf = JoystickInterface::getConfiguration(ui->deviceLineEdit->text().toStdString());
+    JoystickConfiguration conf = LinuxJoystickInterface::getConfiguration(ui->deviceLineEdit->text().toStdString());
     conf.print();
 
     ui->nameLabel   ->setText(QString::fromStdString(conf.name));
@@ -47,9 +59,15 @@ void JoystickOptionsWidget::openJoystick()
     if (mInterface != NULL) {
         return;
     }
-    mInterface = new JoystickListener(ui->deviceLineEdit->text().toStdString(), this);
 
-    JoystickConfiguration conf = JoystickListener::getConfiguration(mInterface->mDeviceName.c_str());
+    std::string name  = ui->deviceLineEdit->text().toStdString();
+    if (HelperUtils::endsWith(name, ".dump")) {
+        mInterface = new JoystickListener<PlaybackJoystickInterface>(name, this);
+    } else {
+        mInterface = new JoystickListener<LinuxJoystickInterface>(name, this);
+    }
+
+    JoystickConfiguration conf = mInterface->getConfiguration();
     conf.print();
     reconfigure(conf);
     QObject::connect(mInterface, SIGNAL(joystickUpdated(JoystickState)), this, SLOT(newData(JoystickState)), Qt::QueuedConnection);
@@ -74,6 +92,24 @@ void JoystickOptionsWidget::closeJoystick()
     ui->closePushButton->setEnabled(false);
 }
 
+void JoystickOptionsWidget::recordJoystick()
+{
+    recording = !recording;
+
+    if (!recording)
+    {
+        record.save("joystick.dump");
+    } else {
+        record.reset(currentConfiguation);
+    }
+
+    if (recording) {
+        ui->recordPushButton->setText("Stop Record");
+    } else {
+        ui->recordPushButton->setText("Record");
+    }
+}
+
 void JoystickOptionsWidget::clearDialog()
 {
     mAxisWidgets.clear();
@@ -90,6 +126,7 @@ void JoystickOptionsWidget::clearDialog()
 
 void JoystickOptionsWidget::reconfigure(JoystickConfiguration &conf)
 {
+    currentConfiguation = conf;
     clearDialog();
 
     QLayout *layout = ui->mappingBox->layout();
@@ -139,14 +176,21 @@ void JoystickOptionsWidget::newData(JoystickState state)
         // SYNC_PRINT(("Setting button to %d\n", state.button[i]));
     }
 
+    if (recording) {
+        record.addState(state);
+    }
+
+
+    for (size_t i = 0; i < state.axis.size(); i++)
+    {
+        ui->graphWidget->addGraphPoint(i, state.axis[i]);
+    }
+
+    for (size_t i = 0; i < state.button.size(); i++)
+    {
+        ui->graphWidget->addGraphPoint(i + state.axis.size(), state.button[i]);
+    }
+    ui->graphWidget->update();
 }
 
-void JoystickListener::newJoystickState(JoystickState state)
-{
-    emit joystickUpdated(state);
-#if 0
-    QMetaObject::invokeMethod( mTarget, "newData", Qt::QueuedConnection,
-                               Q_ARG( JoystickState, state ) );
-#endif
 
-}
