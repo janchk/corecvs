@@ -10,4 +10,6 @@ Build status for [master_cmake](https://github.com/PimenovAlexander/corecvs/tree
 
 ![](https://github.com/PimenovAlexander/corecvs/workflows/CMake_Ubuntu/badge.svg?branch=master_cmake)
 
+# Maintainer work branch
 
+![](https://github.com/PimenovAlexander/corecvs/workflows/CMake_Ubuntu/badge.svg?branch=apimenov_quad)
