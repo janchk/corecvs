@@ -1,10 +1,20 @@
 #include "calibrationWidget.h"
 #include "ui_calibrationWidget.h"
-#include "opencv2/core.hpp"
 #include "imageForCalibrationWidget.h"
-#include "iostream"
-#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <thread>
+#include <mutex>
+
+
 #include <QDir>
+#include <QTimer>
+#include <QFileDialog>
+#include <imageCaptureInterfaceQt.h>
+#include <g12Image.h>
+
+
+#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/xfeatures2d.hpp>
@@ -14,10 +24,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/calib3d.hpp>
-#include <thread>
-#include <mutex>
-#include <QTimer>
-#include <QFileDialog>
+
 #include "core/utils/global.h"
 #include "core/utils/utils.h"
 
@@ -26,11 +33,21 @@ CalibrationWidget::CalibrationWidget(QWidget *parent) :
     ui(new Ui::CalibrationWidget)
 {
     ui->setupUi(this);
+    /* Cameras */
+    mInputSelector.setInputString("v4l2:/dev/video0:1/5");
+
+    connect(ui->inputSettingsButton  , SIGNAL(released()), this, SLOT(showInputSettings()));
+    connect(ui->camerasSettingsButton, SIGNAL(released()), this, SLOT(showCameraSettings()));
+
+    connect(ui->startRecordingButton, SIGNAL(released()), this, SLOT(startRecording()));
+    connect(ui->stopRecordingButton , SIGNAL(released()), this, SLOT(stopRecording()) );
+    connect(ui->pauseRecordingButton, SIGNAL(released()), this, SLOT(pauseRecording()));
+
+
     ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
-    updateVideo();
-    addImage();
-    QTimer::singleShot(38,this,SLOT(updateImage()));
+    //addImage();
+    //QTimer::singleShot(38,this,SLOT(updateImage()));
 }
 
 CalibrationWidget::~CalibrationWidget()
@@ -41,6 +58,62 @@ CalibrationWidget::~CalibrationWidget()
     delete ui;
 }
 
+/* Camera controls */
+void CalibrationWidget::stopRecording()
+{
+
+}
+
+void CalibrationWidget::startRecording()
+{
+    std::string str = mInputSelector.getInputString().toStdString();
+    mInterface = ImageCaptureInterfaceQtFactory::fabric(str, true);
+    if (mInterface == NULL)
+        return;
+
+    SYNC_PRINT(("CalibrationWidget::startRecording(): initialising capture...\n"));
+    ImageCaptureInterface::CapErrorCode returnCode = mInterface->initCapture();
+    SYNC_PRINT(("CalibrationWidget::startRecording(): initialising capture returing %d\n", returnCode));
+
+    if (returnCode == ImageCaptureInterface::FAILURE)
+    {
+        SYNC_PRINT(("Can't open\n"));
+        return;
+    }
+
+    /*Ok we seem to have started recording */
+    ui->startRecordingButton->setEnabled(false);
+    ui->stopRecordingButton->setEnabled(true);
+    ui->pauseRecordingButton->setEnabled(true);
+
+    mCameraParametersWidget.setCaptureInterface(mInterface);
+
+    mInterface->startCapture();
+    QTimer::singleShot(50, this, SLOT(newFrameRequset()));
+
+}
+
+void CalibrationWidget::pauseRecording()
+{
+
+}
+
+void CalibrationWidget::newFrameRequset()
+{
+    SYNC_PRINT(("CalibrationWidget::newFrameRequset(): requesting frame\n"));
+    ImageCaptureInterface::FramePair pair = mInterface->getFrameRGB24();
+    RGB24Buffer * result = pair.rgbBufferLeft();
+    pair.setRgbBufferLeft(NULL);
+    pair.freeBuffers();
+
+
+    if (result != NULL)
+      ui->imageWidget->setImage(QSharedPointer<QImage>(new RGB24Image(result)));
+
+    QTimer::singleShot(50, this, SLOT(newFrameRequset()));
+}
+
+
 void CalibrationWidget::updateImage()
 {
     for (int i=0;i<widgets.size();i++)
@@ -48,11 +121,6 @@ void CalibrationWidget::updateImage()
         widgets[i]->updateMicroImage();
     }
     QTimer::singleShot(38,this,SLOT(updateImage()));
-}
-
-void CalibrationWidget::stopRecording()
-{
-
 }
 
 void CalibrationWidget::addImage()
@@ -97,7 +165,7 @@ void CalibrationWidget::updateStartButtonAndRemoveWidget(int k)
             size--;
         }
     }
-    if (widgets.size()>4)
+    if (widgets.size() > 4)
     {
         ui->startButton->setEnabled(true);
     }
@@ -224,80 +292,6 @@ void CalibrationWidget::startCalibration()
     vectorMutex.unlock();
 }
 
-void CalibrationWidget::startRecording()
-{
-    if (!threadRunning)
-    {
-        ui->startRecordingButton->setText("Stop Recording");
-        std::thread thr([this]()
-        {
-        int numCornersHor = 0;
-        numCornersHor = ui->widthLine->text().toInt();
-        int numCornersVer = 0;
-        numCornersVer = ui->heightLine->text().toInt();
-        if (numCornersHor * numCornersVer != 0 && cameraNumber!=-1)
-        {
-            int numSquares = numCornersHor * numCornersVer;
-            cv::Size board_sz = cv::Size(numCornersHor, numCornersVer);
-            cv::VideoCapture capture = cv::VideoCapture(cameraNumber);
-
-            cv::Mat image;
-            cv::Mat gray_image;
-            //capture >> image;
-
-            std::vector<cv::Point2f> corners;
-            setCapute(true);
-            //addImage();
-            while (getCapute())
-            {
-                capture >> image;
-                cvtColor(image, gray_image, CV_RGB2GRAY);
-                bool found = findChessboardCorners(image, board_sz, corners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
-                if(found)
-                {
-                    //std::cout<<"TRUE----------------------------------------------------------------------------------------------------"<<std::endl;
-                    //std::cout<<corners<<std::endl;
-                    cornerSubPix( gray_image, corners, cv::Size(11,11),
-                                                cv::Size(-1,-1), cv::TermCriteria( cv::TermCriteria::EPS+cv::TermCriteria::COUNT, 30, 0.1 ));
-                    //std::cout<<"TRUE2222"<<std::endl;
-                    cv::drawChessboardCorners(gray_image, board_sz, corners, found);
-                    vectorMutex.lock();
-                    widgets[widgets.size()-1]->setImage(&image);
-                    vectorMutex.unlock();
-                }
-                if (!found)
-                {
-                    //std::cout<<"FALSE"<<std::endl;
-                }
-                imshow("gray", gray_image);
-            }
-        }
-        std::cout<<"Recording thread is over"<<std::endl;
-        });
-        thr.detach();
-        threadRunning = true;
-    }
-    else
-    {
-        setCapute(false);
-        threadRunning = false;
-        ui->startRecordingButton->setText("Start Recording");
-    }
-}
-
-void CalibrationWidget::updateVideo()
-{
-    QDir DevDir=*new QDir("/dev","video*",QDir::Name,QDir::System);
-    ui->videoBox->clear();
-    ui->videoBox->addItems(DevDir.entryList());
-}
-
-
-
-void CalibrationWidget::on_videoBox_currentIndexChanged(int index)         //if linux will drop some numbers it will not work
-{
-    cameraNumber = index;
-}
 
 void CalibrationWidget::setCapute(bool b)
 {
@@ -325,4 +319,16 @@ void CalibrationWidget::saveMatrix()
         fs <<"intrinsic"<<globalIntrinsic;
         fs <<"distCoeffs"<<globalDistCoeffs;
     }
+}
+
+void CalibrationWidget::showInputSettings()
+{
+    mInputSelector.show();
+    mInputSelector.raise();
+}
+
+void CalibrationWidget::showCameraSettings()
+{
+    mCameraParametersWidget.show();
+    mCameraParametersWidget.raise();
 }

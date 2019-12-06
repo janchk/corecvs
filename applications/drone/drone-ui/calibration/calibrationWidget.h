@@ -4,6 +4,9 @@
 #include <QWidget>
 #include "opencv2/core.hpp"
 #include "imageForCalibrationWidget.h"
+#include <capSettingsDialog.h>
+#include <imageCaptureInterfaceQt.h>
+#include <inputSelectorWidget.h>
 #include <mutex>
 
 namespace Ui {
@@ -25,16 +28,36 @@ private slots:
     void updateStartButton();
     void updateStartButtonAndRemoveWidget(int k);
     void startCalibration();
-    void startRecording();
-    void updateVideo();
-    void on_videoBox_currentIndexChanged(int index);
 
     void updateImage();
     void stopShowing();
     void saveMatrix();
+
+    /* Camera control */
+public:
+    InputSelectorWidget mInputSelector;
+    CapSettingsDialog mCameraParametersWidget;
+
+    ImageCaptureInterfaceQt *mInterface = NULL;
+public slots:
+    void showInputSettings();
+    void showCameraSettings();
+
+public slots:
+    void startRecording();
+    void pauseRecording();
+    void stopRecording();
+
+    void newFrameRequset();
+
+public:
+    /* */
+    vector<SaveableWidget *> mSaveableWidgets;
+
 private:
     int cameraNumber=-1;
     Ui::CalibrationWidget *ui;
+
     std::vector<ImageForCalibrationWidget *> widgets;
     int widgetCounter=0;
     bool caputing = false;
@@ -52,7 +75,6 @@ private:
     void setShowingBool(bool b);
     std::mutex showingMutex;
 
-    void stopRecording();
     void calibrate();
 };
 

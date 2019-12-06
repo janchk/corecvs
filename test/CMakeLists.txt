@@ -2,16 +2,16 @@
 set(TEST_SUBDIRECTORIES
     adoptcolor    # depends on utils
     avencode      
-    #ceres_playground
     #command_harness
-    # example_scene # includes files from on avencode
+    widget_harness
+    example_scene
     fileloader
     flow_detector
     flowtest
     focus_stack
     gcodeplayground
-    #grab24        # depends on utils
-    #grab24_qt
+    grab24
+    grab24_qt
     # jitplayground
     pattern_detector
     raytracerender
@@ -19,8 +19,12 @@ set(TEST_SUBDIRECTORIES
     #serialize1
     softrender
     face_distortion
-
+    autonavRW
 )
+
+if (EIGEN_FOUND AND CERES_FOUND)
+    set(TEST_SUBDIRECTORIES ${TEST_SUBDIRECTORIES} ceres_playground)
+endif()
 
 foreach(test_subdirectory ${TEST_SUBDIRECTORIES})
     message(STATUS "adding subdirectory test/${test_subdirectory}")

@@ -1,9 +1,10 @@
-if (USE_OPENCV)
+if (OpenCV_LIBS)
     set(DRONE_SUBDIRECTORIES
         drone-core
         drone-ui
         physics-test
         drone-app
+        calibrator
     )
 
     foreach(test_subdirectory ${DRONE_SUBDIRECTORIES})

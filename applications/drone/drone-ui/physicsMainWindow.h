@@ -120,13 +120,17 @@ public slots:
 
     void showCameraParametersWidget();
     void showCameraModelWidget();
+    void cameraModelWidgetChanged();
+
+signals:
+    void newCameraModel(CameraModel model);
 
 /** Processing **/
 public:
     FlowFabricControlWidget mFlowFabricControlWidget;
     GraphPlotDialog mGraphDialog;
     StatisticsDialog mStatsDialog;
-    PatternDetectorParametersWidget *patternDetectorParametersWidget = NULL;
+    PatternDetectorParametersWidget patternDetectorParametersWidget;
 
 public slots:
     void showProcessingParametersWidget();
@@ -177,6 +181,11 @@ public:
 public slots:
     void updateUi();
     void keepAliveJoyStick();
+
+
+/** Save/load block */
+public:
+    vector<SaveableWidget *> toSave;
 
 
 private slots:

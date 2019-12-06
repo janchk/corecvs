@@ -1,39 +1,26 @@
 #ifndef CORECVS_APRILTAGDETECTOR_H
 #define CORECVS_APRILTAGDETECTOR_H
 
-//
-// Created by jakhremchik
-//
+/**
+ * \file apriltagDetector.h
+ * \brief a header for apriltagDetector.cpp
+ *
+ * \date Nov 27, 2019
+ * \author jakhremchik
+ **/
 
-#include <opencv2/opencv.hpp>
 
 #include "core/patterndetection/patternDetector.h"
 #include "core/stats/calculationStats.h"
 #include "generated/apriltagParameters.h"
 
 extern "C" {
-#if 0
-#include <apriltag/apriltag.h>
-#include <apriltag/tag36h11.h>
-#include <apriltag/tag16h5.h>
-#include <apriltag/tag25h9.h>
-#include <apriltag/tagCircle21h7.h>
-#include <apriltag/tagCircle49h12.h>
-#include <apriltag/tagStandard41h12.h>
-#include <apriltag/tagStandard52h13.h>
-#include <apriltag/tagCustom48h12.h>
-#include <apriltag/common/getopt.h>
-#endif
-#include <apriltag.h>
-#include <tag36h11.h>
-#include <tag16h5.h>
-#include <tag25h9.h>
-#include <tagCircle21h7.h>
-#include <tagCircle49h12.h>
-#include <tagStandard41h12.h>
-#include <tagStandard52h13.h>
-#include <tagCustom48h12.h>
-#include <common/getopt.h>
+struct  apriltag_detector;
+typedef apriltag_detector apriltag_detector_t;
+struct  apriltag_family;
+typedef apriltag_family apriltag_family_t;
+struct zarray;
+typedef zarray zarray_t;
 
 }
 
@@ -63,7 +50,10 @@ public:
 
 public:
     std::map<std::string, corecvs::DynamicObject> getParameters() override;
+
     bool setParameters(std::string name, const corecvs::DynamicObject &param) override;
+
+
 
     void setInputImage(corecvs::RGB24Buffer *input) override;
 
@@ -74,9 +64,12 @@ public:
     }
 
 private:
+    bool apriltag_create();
+    bool apriltag_destroy();
+
     apriltag_family_t *tf   = nullptr;
     apriltag_detector_t *td = nullptr;
-    zarray   *at_detections = nullptr;
+    zarray_t *at_detections = nullptr;
 };
 
 #endif //CORECVS_APRILTAGDETECTOR_H

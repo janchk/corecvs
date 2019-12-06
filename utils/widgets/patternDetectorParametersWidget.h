@@ -52,7 +52,7 @@ public:
 };
 
 
-class PatternDetectorParametersWidget : public QWidget
+class PatternDetectorParametersWidget : public QWidget, public SaveableWidget
 {
     Q_OBJECT
 
@@ -65,6 +65,13 @@ public:
     virtual ~PatternDetectorParametersWidget();
 
     GeneralPatternDetectorParameters getParameters();
+
+    virtual void loadParamWidget(WidgetLoader &loader);
+    virtual void saveParamWidget(WidgetSaver  &saver );
+
+    virtual void loadFromQSettings(const QString &fileName, const QString &_root);
+    virtual void saveToQSettings  (const QString &fileName, const QString &_root);
+
 
 public slots:
     void setCurrentToDefaults();

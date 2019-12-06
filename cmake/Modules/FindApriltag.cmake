@@ -1,7 +1,7 @@
 SET(APRILTAG_INCLUDE_SEARCH_PATHS
         ${CMAKE_CURRENT_LIST_DIR}/../../siblings/apriltag
-        /usr/include/
-        /usr/local/include/
+#        /usr/include/
+#        /usr/local/include/
         /usr/local/include/apriltag/
         /usr/local/include/apriltag/common/
        )
@@ -18,7 +18,7 @@ SET(APRILTAG_LIB_SEARCH_PATHS
         /usr/local/lib64/
         )
 
-message(APRILTAG_LIB_SEARCH_PATHS: ${APRILTAG_LIB_SEARCH_PATHS})
+#message(APRILTAG_LIB_SEARCH_PATHS: ${APRILTAG_LIB_SEARCH_PATHS})
 
 FIND_PATH(APRILTAG_INCLUDE_DIR NAMES
         apriltag.h
@@ -60,10 +60,10 @@ FIND_PATH(APRILTAG_INCLUDE_DIR NAMES
         zarray.h
         zhash.h
         zmaxheap.h
-        PATHS ${APRILTAG_INCLUDE_SEARCH_PATHS}
+        PATHS ${APRILTAG_INCLUDE_SEARCH_PATHS} NO_DEFAULT_PATH
         )
 
-FIND_LIBRARY(APRILTAG_LIB NAMES apriltag PATHS ${APRILTAG_LIB_SEARCH_PATHS} )
+FIND_LIBRARY(APRILTAG_LIB NAMES apriltag PATHS ${APRILTAG_LIB_SEARCH_PATHS} NO_DEFAULT_PATH)
 
 if (APRILTAG_LIB)
   message("Apriltag has been found.")

@@ -59,6 +59,17 @@ IF ( USE_LIBJPEG )
     find_package( Jpeg )
 ENDIF ()
 
+option(USE_EIGEN "Should compile with Eigen solver" YES)
+IF ( USE_EIGEN )
+    MESSAGE( STATUS "Including Eigen solver wherever possible" )
+    find_package( Eigen )
+ENDIF ()
+
+option(USE_CERES "Should compile with Ceres solver" YES)
+IF ( USE_CERES )
+    MESSAGE( STATUS "Including Ceres solver wherever possible" )
+    find_package( Ceres )
+ENDIF ()
 
 option(USE_AVCODEC "Should compile with AVCODEC" YES)
 IF ( USE_AVCODEC )
@@ -77,7 +88,7 @@ IF ( USE_APRILTAG )
     if (APRILTAG_FOUND)
         add_definitions(-DWITH_APRILTAG)
     else()
-        message("You requested WITH_APRILTAG in the build, but none was found.")
+        message("You requested USE_APRILTAG in the build, but none was found.")
     endif()
 else()
     MESSAGE(STATUS "Apriltag switched off")
@@ -118,4 +129,7 @@ add_subdirectory(tools)
 enable_testing()
 add_subdirectory(test-core)
 add_subdirectory(test-core/-perf)
+
+
+
 

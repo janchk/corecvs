@@ -1,13 +1,12 @@
 set(TEST_SUBDIRECTORIES
    #base
-   #cloudview
+   cloudview
    drone
    #egomotion
-   #imageview
+   imageview  # This should be fixed
    #laserscan
    #nester
    #nester-test
-   #physics
    #recorder
    #robodetect
    #scanner

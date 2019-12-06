@@ -94,6 +94,74 @@ GeneralPatternDetectorParameters PatternDetectorParametersWidget::getParameters(
     return toReturn;
 }
 
+void PatternDetectorParametersWidget::loadParamWidget(WidgetLoader &loader)
+{
+    SYNC_PRINT(("PatternDetectorParametersWidget::loadParamWidget(): called"));
+}
+
+void PatternDetectorParametersWidget::saveParamWidget(WidgetSaver &saver)
+{
+    SYNC_PRINT(("PatternDetectorParametersWidget::saveParamWidget(): called"));
+}
+
+void PatternDetectorParametersWidget::loadFromQSettings(const QString &fileName, const QString &_root)
+{
+    SettingsGetter visitor(fileName, _root);
+    std::string name;
+    visitor.visit(name, name, "provider");
+    for (size_t id = 0; id < providerMetadata.size(); id++ )
+    {
+        if (providerMetadata[id]->providerName == name)
+        {
+            ui->providerComboBox->setCurrentIndex(id);
+            ui->tabWidget->setCurrentIndex(id);
+            break;
+        }
+    }
+    for (size_t id = 0; id < providerMetadata.size(); id++ )
+    {
+        std::string provider = providerMetadata[id]->providerName;
+        std::map<std::string, ReflectionWidget*> &wmap = providerMetadata[id]->reflectionWidgets;
+        for (auto &it : wmap)
+        {
+            std::string name = it.first;
+            ReflectionWidget *widget = it.second;
+
+            DynamicObject block(widget->reflection);
+            visitor.visit(block, (provider + "." + name).c_str());
+            cout << block << endl;
+            widget->setParameters(block.rawObject);
+        }
+    }
+
+
+
+}
+
+void PatternDetectorParametersWidget::saveToQSettings (const QString &fileName, const QString &_root)
+{
+    SettingsSetter visitor(fileName, _root);
+    size_t id = (size_t)ui->providerComboBox->currentIndex();
+    std::string name = providerMetadata[id]->providerName;
+    visitor.visit(name, name, "provider");
+
+    for (size_t id = 0; id < providerMetadata.size(); id++ )
+    {
+        std::string provider = providerMetadata[id]->providerName;
+        std::map<std::string, ReflectionWidget*> &wmap = providerMetadata[id]->reflectionWidgets;
+        for (auto &it : wmap)
+        {
+            std::string name = it.first;
+            ReflectionWidget *widget = it.second;
+
+            DynamicObject block(widget->reflection);
+            widget->getParameters(block.rawObject);
+            visitor.visit(block, (provider + "." + name).c_str());
+        }
+    }
+}
+
+
 void PatternDetectorParametersWidget::setCurrentToDefaults()
 {
 

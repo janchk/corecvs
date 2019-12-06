@@ -33,10 +33,12 @@ PhysicsMainWindow::PhysicsMainWindow(QWidget *parent) :
     /*Camera*/
     mInputSelector.setInputString("v4l2:/dev/video0:1/30:mjpeg:800x600");
 
-    PinholeCameraIntrinsics *intr = new PinholeCameraIntrinsics(640, 480, degToRad(60));
+    PinholeCameraIntrinsics *intr = new PinholeCameraIntrinsics(Vector2dd(800, 600), degToRad(70.42));
     mCameraModel.intrinsics.reset(intr);
     mCameraModel.nameId = "Copter Main Camera";
+    mCameraModel.setLocation(Affine3DQ::Identity());
     mModelParametersWidget.setParameters(mCameraModel);
+    connect(&mModelParametersWidget, SIGNAL(paramsChanged()), this, SLOT(cameraModelWidgetChanged()));
 
     for (int i=0;i<8;i++)
     {
@@ -55,13 +57,34 @@ PhysicsMainWindow::PhysicsMainWindow(QWidget *parent) :
 
     ui->actionShowLog->toggled(false);
 
+    /* Creating main processing chain */
+    mProcessor = new FrameProcessor();
+    mProcessor->target = this;
+
+    SYNC_PRINT(("PhysicsMainWindow::startCamera(): connecting parameters\n"));
+    qRegisterMetaType<GeneralPatternDetectorParameters>("GeneralPatternDetectorParameters");
+    connect(this      , SIGNAL(newPatternDetectionParameters(GeneralPatternDetectorParameters)),
+            mProcessor, SLOT  (setPatternDetectorParameters(GeneralPatternDetectorParameters)));
+
+    SYNC_PRINT(("PhysicsMainWindow::startCamera(): connecting camera model\n"));
+    qRegisterMetaType<CameraModel>("CameraModel");
+    connect(this      , SIGNAL(newCameraModel(CameraModel)),
+            mProcessor, SLOT  (setCameraModel(CameraModel)));
+
     /* Setting put paramteres */
 
     flightControllerParametersWidget = new ReflectionWidget(FlightControllerParameters::getReflection());
     connect(flightControllerParametersWidget, SIGNAL(paramsChanged()), this, SLOT(flightControllerParametersChanged()));
 
-    patternDetectorParametersWidget = new PatternDetectorParametersWidget();
-    connect(patternDetectorParametersWidget, SIGNAL(paramsChanged()), this, SLOT(patternDetectionParametersChanged()));
+    connect(&patternDetectorParametersWidget, SIGNAL(paramsChanged()), this, SLOT(patternDetectionParametersChanged()));
+
+    toSave.push_back(flightControllerParametersWidget);
+    toSave.push_back(&patternDetectorParametersWidget);
+    toSave.push_back(&mInputSelector);
+    toSave.push_back(&mModelParametersWidget);
+
+    mInputSelector.loadFromQSettings("drone.ini", "");
+    patternDetectorParametersWidget.loadFromQSettings("drone.ini", "");
 
 
     /* Moving the camera closer */
@@ -70,6 +93,11 @@ PhysicsMainWindow::PhysicsMainWindow(QWidget *parent) :
 
 PhysicsMainWindow::~PhysicsMainWindow()
 {
+    SYNC_PRINT(("PhysicsMainWindow::~PhysicsMainWindow(): called"));
+    for (SaveableWidget *ts: toSave) {
+        ts->saveToQSettings("drone.ini", "");
+    }
+
     Log::mLogDrains.detach(ui->logWidget);
     delete ui;
 }
@@ -106,20 +134,17 @@ void PhysicsMainWindow::flightControllerParametersChanged()
 
 void PhysicsMainWindow::showPatternDetectionParameters()
 {
-    SYNC_PRINT(("PhysicsMainWindow::showPatternDetectionParameters():called\n"));
-    if (patternDetectorParametersWidget == NULL) {
-        return;
-    }
-    patternDetectorParametersWidget->show();
-    patternDetectorParametersWidget->raise();
+    SYNC_PRINT(("PhysicsMainWindow::showPatternDetectionParameters():called\n"));   
+    patternDetectorParametersWidget.show();
+    patternDetectorParametersWidget.raise();
 }
 
 void PhysicsMainWindow::patternDetectionParametersChanged()
 {
     SYNC_PRINT(("PhysicsMainWindow::patternDetectionParametersChanged():called\n"));
 
-    GeneralPatternDetectorParameters params = patternDetectorParametersWidget->getParameters();
-    SYNC_PRINT(("New Params"));
+    GeneralPatternDetectorParameters params = patternDetectorParametersWidget.getParameters();
+    SYNC_PRINT(("PhysicsMainWindow::patternDetectionParametersChanged():\n"));
     cout << params << endl;
     emit newPatternDetectionParameters(params);
 }
@@ -335,18 +360,10 @@ void PhysicsMainWindow::startCamera()                                           
     }
     cameraActive = true;
     /* We should prepare calculator in some other place */
-    mProcessor = new FrameProcessor();
-    mProcessor->target = this;
-
-    SYNC_PRINT(("PhysicsMainWindow::startCamera(): connecting parameters\n"));
-    qRegisterMetaType<GeneralPatternDetectorParameters>("GeneralPatternDetectorParameters");
-    connect(this      , SIGNAL(newPatternDetectionParameters(GeneralPatternDetectorParameters)),
-            mProcessor, SLOT  (setPatternDetectorParameters(GeneralPatternDetectorParameters)));
-
-
 
     //std::string inputString = inputCameraPath;
     std::string inputString = mInputSelector.getInputString().toStdString();
+
 
     ImageCaptureInterfaceQt *rawInput = ImageCaptureInterfaceQtFactory::fabric(inputString, true);
     if (rawInput == NULL)
@@ -404,6 +421,14 @@ void PhysicsMainWindow::showCameraModelWidget()
     mModelParametersWidget.show();
     mModelParametersWidget.raise();
 }
+
+void PhysicsMainWindow::cameraModelWidgetChanged()
+{
+    SYNC_PRINT(("PhysicsMainWindow::cameraModelWidgetChanged()\n"));
+    mModelParametersWidget.getParameters(mCameraModel);
+    emit newCameraModel(mCameraModel);
+}
+
 
 void PhysicsMainWindow::showProcessingParametersWidget()
 {
@@ -798,7 +823,7 @@ void PhysicsMainWindow::updateUi()
 void PhysicsMainWindow::on_updateCameraButton_clicked()
 {
 
-    QDir DevDir=*new QDir("/dev","video*",QDir::Name,QDir::System);
+    QDir DevDir("/dev","video*",QDir::Name,QDir::System);
     ui->comboBox_2->clear();
     ui->comboBox_2->addItems(DevDir.entryList());
 

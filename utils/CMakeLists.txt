@@ -6,7 +6,7 @@ set (UTILS_SUBDIRECTORIES
     corestructs
     distortioncorrector
     fileformats
-#    filters
+    filters
     flowcolorers
     framesources
     # memoryuse
@@ -52,7 +52,6 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR "YES")
 set(CMAKE_AUTOMOC "YES")
-#set(CMAKE_AUTOUIC "YES")
 set(CMAKE_AUTORCC "YES")
 
 
